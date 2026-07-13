@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel de Investimentos</title>
+<title>Dashboard de Investimentos — Hantower & Carteira</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
@@ -84,7 +84,7 @@
     <div class="head-row">
       <div>
         <div class="eyebrow">Painel de decisão · dados ao vivo</div>
-        <h1>Painel de Investimentos</h1>
+        <h1>Investimentos — Hantower &amp; Carteira</h1>
       </div>
       <div class="badges">
         <span id="badgeBCB" class="badge b-load">◌ Buscando BCB…</span>
@@ -99,7 +99,7 @@
 <main>
   <nav>
     <button class="tab on" data-p="visao" onclick="irAba(this)">Visão geral</button>
-    <button class="tab" data-p="imovel" onclick="irAba(this)">Imóvel</button>
+    <button class="tab" data-p="imovel" onclick="irAba(this)">Imóvel Hantower</button>
     <button class="tab" data-p="fiis" onclick="irAba(this)">FIIs</button>
     <button class="tab" data-p="acoes" onclick="irAba(this)">Ações</button>
     <button class="tab" data-p="indices" onclick="irAba(this)">Índices</button>
@@ -132,9 +132,9 @@
     <div class="kpis" id="kpisImovel"></div>
     <div class="card">
       <div class="card-head">
-        <h3>Premissa de valorização do imóvel</h3>
+        <h3>Premissa de valorização do imóvel (contrato: CUB/RS R-16A)</h3>
         <div class="radio-row">
-          <label><input type="radio" name="valz" value="incc" checked onchange="mudarPremissa()"> INCC-M real</label>
+          <label><input type="radio" name="valz" value="incc" checked onchange="mudarPremissa()"> CUB/INCC real</label>
           <label><input type="radio" name="valz" value="fixa" onchange="mudarPremissa()"> Taxa fixa:</label>
           <input type="number" id="taxaFixa" value="5.0" step="0.5" min="-10" max="30" disabled onchange="mudarPremissa()"> % a.a.
         </div>
@@ -285,7 +285,7 @@
       <div class="note" id="diagLinha" style="display:none;color:var(--red);font-weight:600"></div>
     </div>
     <div class="card">
-      <h3>Parâmetros do imóvel — editáveis</h3>
+      <h3>Parâmetros do modelo Hantower — editáveis</h3>
       <p style="color:var(--slate)">Altere qualquer valor e clique em Aplicar. Tudo fica salvo no navegador e o modelo inteiro recalcula na hora.</p>
       <div class="pgrid">
         <label>Valor de tabela (R$)<input type="number" id="pValorTabela" step="1000"></label>
@@ -307,6 +307,7 @@
         <label>IR ganho de capital (%)<input type="number" id="pIrGC" step="0.5" min="0" max="35"></label>
         <label>Corretagem na venda (%)<input type="number" id="pCorretagem" step="0.5" min="0" max="15"></label>
         <label>IR sobre CDI (%)<input type="number" id="pIrCDI" step="0.5" min="0" max="27.5"></label>
+        <label>Início da correção (obras)<input type="date" id="pInicioCorrecao"></label>
         <label>Saldo devedor<select id="pMetodoSD">
           <option value="nominal">Nominal (soma das parcelas restantes)</option>
           <option value="vp">Valor presente (descontado ao CDI líquido)</option>
@@ -339,17 +340,21 @@
 // CONFIGURAÇÃO (extraída da planilha original)
 // ============================================================
 const DEFAULTS = {
-  valorTabela: 500000, entrada: 0, entradaParcelas: 1, entradaPeriodo: 1, entradaData: "2024-01-01", dataCompra: "2024-01-01", primeiraParcela: "2024-07-01",
-  numParcelas: 100, parcelaFixa: 3500, parcelaVariavelBase: 3000,
-  dataChaves: "2029-01-01", valorChaves: 0, irGC: 0.15, corretagem: 0.06, irCDI: 0.15,
-  metodoSD: "nominal", idxCdi: 0.0093, idxIpca: 0.0038, idxIncc: 0.0045
+  valorTabela: 896000, entrada: 0, entradaParcelas: 4, entradaPeriodo: 1, entradaData: "2024-02-01", dataCompra: "2024-02-01", primeiraParcela: "2024-08-01",
+  numParcelas: 100, parcelaFixa: 6185.26, parcelaVariavelBase: 5000,
+  dataChaves: "2029-07-01", valorChaves: 0, irGC: 0.15, corretagem: 0.06, irCDI: 0.15,
+  inicioCorrecao: "2027-07-01", metodoSD: "nominal", idxCdi: 0.0093, idxIpca: 0.0038, idxIncc: 0.0045
 };
 let PARAM = {...DEFAULTS};
 try{ const s=localStorage.getItem("dash_params"); if(s) PARAM={...DEFAULTS, ...JSON.parse(s)}; }catch(e){}
 const HANTOWER = PARAM; // compatibilidade
 const CART_DEFAULT = {
-  fiis:[],
-  acoes:[],
+  fiis:[
+    {t:"IRDM11",q:499,pm:107.50},{t:"BARI11",q:145,pm:100.15},{t:"HGCR11",q:100,pm:100.95},
+    {t:"MCCI11",q:50,pm:100.94},{t:"RNGO11",q:102,pm:73.49},{t:"HGRE11",q:115,pm:125.00},
+    {t:"HGRU11",q:79,pm:128.41},{t:"RBRR11",q:98,pm:98.80},{t:"VILG11",q:75,pm:95.45}
+  ],
+  acoes:[{t:"ABEV3",q:500,pm:13.43,peso:50},{t:"ITUB4",q:400,pm:25.78,peso:50}],
   outros:[]
 };
 let CART=JSON.parse(JSON.stringify(CART_DEFAULT));
@@ -577,11 +582,14 @@ function calcularModelo(){
   const irCdiLiq=PARAM.irCDI;
   const valMes=premissa.modo==="fixa"?Math.pow(1+premissa.taxaAA,1/12)-1:null;
 
-  // Cronograma de parcelas (variável corrigida por INCC desde a 1ª parcela)
-  const parcelas=[]; let fIncc=1;
+  // Cronograma: parcelas NOMINAIS até o inicio das obras; corrigidas pelo indice a partir dali (clausula 5.2.1)
+  const dtCorr=new Date((PARAM.inicioCorrecao||PARAM.primeiraParcela)+"T12:00:00");
+  const kCorr=mKey(dtCorr);
+  const parcelas=[]; let fIdx=1;
   for(let i=0;i<PARAM.numParcelas;i++){
-    const data=addM(ini,i); fIncc*=1+inccDe(data);
-    parcelas.push({n:i+1,data,total:PARAM.parcelaFixa+PARAM.parcelaVariavelBase*fIncc,paga:data<=hoje});
+    const data=addM(ini,i);
+    if(mKey(data)>=kCorr) fIdx*=1+inccDe(data);   // so acumula a partir do inicio das obras
+    parcelas.push({n:i+1,data,total:PARAM.parcelaFixa+PARAM.parcelaVariavelBase*fIdx,paga:data<=hoje});
   }
 
   // Fluxos da entrada (à vista ou parcelada em N meses a partir da data informada)
@@ -600,7 +608,7 @@ function calcularModelo(){
   while(mKey(d)<mKey(ini)){
     const fE=entFluxo[mKey(d)]||0;
     co=co*(1+cdiDe(d)*(1-irCdiLiq))+fE; pago+=fE;
-    if(d>=compra)fImv*=premissa.modo==="incc"?1+inccDe(d):1+valMes;
+    if(d>=compra)fImv*=premissa.modo==="incc"?(mKey(d)>=kCorr?1+inccDe(d):1):1+valMes;
     d=addM(d,1);
   }
 
@@ -614,7 +622,7 @@ function calcularModelo(){
     const aporte=p.total+extraChaves+extraEntrada;
     co=co*(1+cdiDe(p.data)*(1-irCdiLiq))+aporte;
     pago+=aporte;
-    fImv*=premissa.modo==="incc"?1+inccDe(p.data):1+valMes;
+    fImv*=premissa.modo==="incc"?(mKey(p.data)>=kCorr?1+inccDe(p.data):1):1+valMes;
     const vImv=PARAM.valorTabela*fImv;
 
     // Saldo devedor: parcelas restantes + chaves futuras
@@ -934,6 +942,7 @@ function aplicarParams(){
   PARAM.irGC=num("pIrGC",100)??PARAM.irGC;
   PARAM.corretagem=num("pCorretagem",100)??PARAM.corretagem;
   PARAM.irCDI=num("pIrCDI",100)??PARAM.irCDI;
+  PARAM.inicioCorrecao=txt("pInicioCorrecao")??PARAM.inicioCorrecao;
   PARAM.metodoSD=el("pMetodoSD").value;
   PARAM.idxCdi=num("mCdi",100)??PARAM.idxCdi;
   PARAM.idxIpca=num("mIpca",100)??PARAM.idxIpca;
