@@ -16,40 +16,81 @@ jobs:
 
       - name: Buscar series no Banco Central
         run: |
-          # Busca uma serie; se falhar, devolve [] em vez de abortar o robo
+          INI=$(date -u -d "-38 months" +%d/%m/%Y)
+          FIM=$(date -u +%d/%m/%Y)
+          echo "Periodo: $INI ate $FIM"
+
+          # Busca por intervalo de datas (o /ultimos/N e recusado pelo BCB)
           buscar(){
-            local cod=$1 n=$2 out
-            out=$(curl -sS --max-time 40 -H "User-Agent: Mozilla/5.0" \
-              "https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados/ultimos/${n}?formato=json" 2>/dev/null)
-            if echo "$out" | head -c 1 | grep -q '\['; then
-              echo "$out"
-            else
-              echo "[]"
-            fi
+            local cod=$1 out
+            out=$(curl -sS --max-time 40 \
+              "https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados?formato=json&dataInicial=${INI}&dataFinal=${FIM}" 2>/dev/null)
+            if echo "$out" | head -c 1 | grep -q '\['; then echo "$out"; else echo "[]"; fi
           }
 
-          CDI=$(buscar 4391 36)
-          IPCA=$(buscar 433 36)
-          SELIC=$(buscar 432 3)
+          CDI=$(buscar 4391)
+          IPCA=$(buscar 433)
+          SELIC=$(curl -sS --max-time 40 "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/3?formato=json" || echo '[]')
 
-          # INCC: tenta varios codigos ate um funcionar
           INCC="[]"
-          for c in 192 7456 7457 189; do
-            T=$(buscar $c 36)
-            if [ "$T" != "[]" ]; then INCC="$T"; echo "INCC encontrado na serie $c"; break; fi
+          for c in 192 7456 7457; do
+            T=$(buscar $c)
+            if [ "$T" != "[]" ]; then INCC="$T"; echo ">> INCC obtido da serie $c"; break; fi
           done
 
           echo "--- diagnostico ---"
-          echo "CDI:   $(echo $CDI | head -c 60)"
-          echo "IPCA:  $(echo $IPCA | head -c 60)"
-          echo "INCC:  $(echo $INCC | head -c 60)"
-          echo "SELIC: $(echo $SELIC | head -c 60)"
+          echo
+
+cat > .github/workflows/atualiza-indices.yml << 'EOF'
+name: Atualizar indices do BCB
+
+on:
+  schedule:
+    - cron: "30 9 * * *"
+  workflow_dispatch:
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Buscar series no Banco Central
+        run: |
+          INI=$(date -u -d "-38 months" +%d/%m/%Y)
+          FIM=$(date -u +%d/%m/%Y)
+          echo "Periodo: $INI ate $FIM"
+
+          # Busca por intervalo de datas (o /ultimos/N e recusado pelo BCB)
+          buscar(){
+            local cod=$1 out
+            out=$(curl -sS --max-time 40 \
+              "https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados?formato=json&dataInicial=${INI}&dataFinal=${FIM}" 2>/dev/null)
+            if echo "$out" | head -c 1 | grep -q '\['; then echo "$out"; else echo "[]"; fi
+          }
+
+          CDI=$(buscar 4391)
+          IPCA=$(buscar 433)
+          SELIC=$(curl -sS --max-time 40 "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/3?formato=json" || echo '[]')
+
+          INCC="[]"
+          for c in 192 7456 7457; do
+            T=$(buscar $c)
+            if [ "$T" != "[]" ]; then INCC="$T"; echo ">> INCC obtido da serie $c"; break; fi
+          done
+
+          echo "--- diagnostico ---"
+          echo "CDI:   $(echo $CDI   | head -c 70)"
+          echo "IPCA:  $(echo $IPCA  | head -c 70)"
+          echo "INCC:  $(echo $INCC  | head -c 70)"
+          echo "SELIC: $(echo $SELIC | head -c 70)"
 
           printf '{"atualizado":"%s","cdi":%s,"ipca":%s,"incc":%s,"selic":%s}\n' \
             "$(date -u +%FT%TZ)" "$CDI" "$IPCA" "$INCC" "$SELIC" > indices.json
-
-          echo "--- indices.json ---"
-          head -c 400 indices.json
+          echo "Tamanho do indices.json: $(wc -c < indices.json) bytes"
 
       - name: Publicar indices.json
         run: |
