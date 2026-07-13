@@ -2,8 +2,8 @@ name: Atualizar indices do BCB
 
 on:
   schedule:
-    - cron: "30 9 * * *"    # todo dia as 06:30 de Brasilia
-  workflow_dispatch:         # permite rodar manualmente pelo botao "Run workflow"
+    - cron: "30 9 * * *"
+  workflow_dispatch:
 
 jobs:
   atualizar:
@@ -16,15 +16,40 @@ jobs:
 
       - name: Buscar series no Banco Central
         run: |
-          set -e
-          buscar(){ curl -fsS --max-time 30 "https://api.bcb.gov.br/dados/serie/bcdata.sgs.$1/dados/ultimos/$2?formato=json"; }
+          # Busca uma serie; se falhar, devolve [] em vez de abortar o robo
+          buscar(){
+            local cod=$1 n=$2 out
+            out=$(curl -sS --max-time 40 -H "User-Agent: Mozilla/5.0" \
+              "https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados/ultimos/${n}?formato=json" 2>/dev/null)
+            if echo "$out" | head -c 1 | grep -q '\['; then
+              echo "$out"
+            else
+              echo "[]"
+            fi
+          }
+
           CDI=$(buscar 4391 36)
           IPCA=$(buscar 433 36)
-          INCC=$(buscar 7456 36 || buscar 192 36 || echo '[]')
-          SELIC=$(buscar 432 3 || echo '[]')
+          SELIC=$(buscar 432 3)
+
+          # INCC: tenta varios codigos ate um funcionar
+          INCC="[]"
+          for c in 192 7456 7457 189; do
+            T=$(buscar $c 36)
+            if [ "$T" != "[]" ]; then INCC="$T"; echo "INCC encontrado na serie $c"; break; fi
+          done
+
+          echo "--- diagnostico ---"
+          echo "CDI:   $(echo $CDI | head -c 60)"
+          echo "IPCA:  $(echo $IPCA | head -c 60)"
+          echo "INCC:  $(echo $INCC | head -c 60)"
+          echo "SELIC: $(echo $SELIC | head -c 60)"
+
           printf '{"atualizado":"%s","cdi":%s,"ipca":%s,"incc":%s,"selic":%s}\n' \
             "$(date -u +%FT%TZ)" "$CDI" "$IPCA" "$INCC" "$SELIC" > indices.json
-          echo "Arquivo gerado:" && head -c 300 indices.json
+
+          echo "--- indices.json ---"
+          head -c 400 indices.json
 
       - name: Publicar indices.json
         run: |
