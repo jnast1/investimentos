@@ -11,91 +11,16 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Baixar repositorio
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Buscar series no Banco Central
-        run: |
-          INI=$(date -u -d "-38 months" +%d/%m/%Y)
-          FIM=$(date -u +%d/%m/%Y)
-          echo "Periodo: $INI ate $FIM"
-
-          # Busca por intervalo de datas (o /ultimos/N e recusado pelo BCB)
-          buscar(){
-            local cod=$1 out
-            out=$(curl -sS --max-time 40 \
-              "https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados?formato=json&dataInicial=${INI}&dataFinal=${FIM}" 2>/dev/null)
-            if echo "$out" | head -c 1 | grep -q '\['; then echo "$out"; else echo "[]"; fi
-          }
-
-          CDI=$(buscar 4391)
-          IPCA=$(buscar 433)
-          SELIC=$(curl -sS --max-time 40 "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/3?formato=json" || echo '[]')
-
-          INCC="[]"
-          for c in 192 7456 7457; do
-            T=$(buscar $c)
-            if [ "$T" != "[]" ]; then INCC="$T"; echo ">> INCC obtido da serie $c"; break; fi
-          done
-
-          echo "--- diagnostico ---"
-          echo
-
-cat > .github/workflows/atualiza-indices.yml << 'EOF'
-name: Atualizar indices do BCB
-
-on:
-  schedule:
-    - cron: "30 9 * * *"
-  workflow_dispatch:
-
-jobs:
-  atualizar:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Baixar repositorio
-        uses: actions/checkout@v4
-
-      - name: Buscar series no Banco Central
-        run: |
-          INI=$(date -u -d "-38 months" +%d/%m/%Y)
-          FIM=$(date -u +%d/%m/%Y)
-          echo "Periodo: $INI ate $FIM"
-
-          # Busca por intervalo de datas (o /ultimos/N e recusado pelo BCB)
-          buscar(){
-            local cod=$1 out
-            out=$(curl -sS --max-time 40 \
-              "https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados?formato=json&dataInicial=${INI}&dataFinal=${FIM}" 2>/dev/null)
-            if echo "$out" | head -c 1 | grep -q '\['; then echo "$out"; else echo "[]"; fi
-          }
-
-          CDI=$(buscar 4391)
-          IPCA=$(buscar 433)
-          SELIC=$(curl -sS --max-time 40 "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/3?formato=json" || echo '[]')
-
-          INCC="[]"
-          for c in 192 7456 7457; do
-            T=$(buscar $c)
-            if [ "$T" != "[]" ]; then INCC="$T"; echo ">> INCC obtido da serie $c"; break; fi
-          done
-
-          echo "--- diagnostico ---"
-          echo "CDI:   $(echo $CDI   | head -c 70)"
-          echo "IPCA:  $(echo $IPCA  | head -c 70)"
-          echo "INCC:  $(echo $INCC  | head -c 70)"
-          echo "SELIC: $(echo $SELIC | head -c 70)"
-
-          printf '{"atualizado":"%s","cdi":%s,"ipca":%s,"incc":%s,"selic":%s}\n' \
-            "$(date -u +%FT%TZ)" "$CDI" "$IPCA" "$INCC" "$SELIC" > indices.json
-          echo "Tamanho do indices.json: $(wc -c < indices.json) bytes"
+      - name: Buscar series no BCB
+        run: python3 scripts/busca_indices.py
 
       - name: Publicar indices.json
         run: |
           git config user.name "robo-indices"
           git config user.email "actions@users.noreply.github.com"
           git add indices.json
-          git diff --cached --quiet || git commit -m "Atualiza indices $(date -u +%F)"
+          git diff --cached --quiet || git commit -m "Atualiza indices"
+          git pull --rebase --autostash
           git push
