@@ -1,0 +1,35 @@
+name: Atualizar indices do BCB
+
+on:
+  schedule:
+    - cron: "30 9 * * *"    # todo dia as 06:30 de Brasilia
+  workflow_dispatch:         # permite rodar manualmente pelo botao "Run workflow"
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Buscar series no Banco Central
+        run: |
+          set -e
+          buscar(){ curl -fsS --max-time 30 "https://api.bcb.gov.br/dados/serie/bcdata.sgs.$1/dados/ultimos/$2?formato=json"; }
+          CDI=$(buscar 4391 36)
+          IPCA=$(buscar 433 36)
+          INCC=$(buscar 7456 36 || buscar 192 36 || echo '[]')
+          SELIC=$(buscar 432 3 || echo '[]')
+          printf '{"atualizado":"%s","cdi":%s,"ipca":%s,"incc":%s,"selic":%s}\n' \
+            "$(date -u +%FT%TZ)" "$CDI" "$IPCA" "$INCC" "$SELIC" > indices.json
+          echo "Arquivo gerado:" && head -c 300 indices.json
+
+      - name: Publicar indices.json
+        run: |
+          git config user.name "robo-indices"
+          git config user.email "actions@users.noreply.github.com"
+          git add indices.json
+          git diff --cached --quiet || git commit -m "Atualiza indices $(date -u +%F)"
+          git push
