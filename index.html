@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard de Investimentos — Hantower & Carteira</title>
+<title>Painel de Investimentos</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
@@ -84,7 +84,7 @@
     <div class="head-row">
       <div>
         <div class="eyebrow">Painel de decisão · dados ao vivo</div>
-        <h1>Investimentos — Hantower &amp; Carteira</h1>
+        <h1>Painel de Investimentos</h1>
       </div>
       <div class="badges">
         <span id="badgeBCB" class="badge b-load">◌ Buscando BCB…</span>
@@ -99,7 +99,7 @@
 <main>
   <nav>
     <button class="tab on" data-p="visao" onclick="irAba(this)">Visão geral</button>
-    <button class="tab" data-p="imovel" onclick="irAba(this)">Imóvel Hantower</button>
+    <button class="tab" data-p="imovel" onclick="irAba(this)">Imóvel</button>
     <button class="tab" data-p="fiis" onclick="irAba(this)">FIIs</button>
     <button class="tab" data-p="acoes" onclick="irAba(this)">Ações</button>
     <button class="tab" data-p="indices" onclick="irAba(this)">Índices</button>
@@ -285,7 +285,7 @@
       <div class="note" id="diagLinha" style="display:none;color:var(--red);font-weight:600"></div>
     </div>
     <div class="card">
-      <h3>Parâmetros do modelo Hantower — editáveis</h3>
+      <h3>Parâmetros do imóvel — editáveis</h3>
       <p style="color:var(--slate)">Altere qualquer valor e clique em Aplicar. Tudo fica salvo no navegador e o modelo inteiro recalcula na hora.</p>
       <div class="pgrid">
         <label>Valor de tabela (R$)<input type="number" id="pValorTabela" step="1000"></label>
@@ -340,21 +340,17 @@
 // CONFIGURAÇÃO (extraída da planilha original)
 // ============================================================
 const DEFAULTS = {
-  valorTabela: 896000, entrada: 0, entradaParcelas: 4, entradaPeriodo: 1, entradaData: "2024-02-01", dataCompra: "2024-02-01", primeiraParcela: "2024-08-01",
-  numParcelas: 100, parcelaFixa: 6185.26, parcelaVariavelBase: 5000,
-  dataChaves: "2029-07-01", valorChaves: 0, irGC: 0.15, corretagem: 0.06, irCDI: 0.15,
+  valorTabela: 500000, entrada: 0, entradaParcelas: 1, entradaPeriodo: 1, entradaData: "2024-01-01", dataCompra: "2024-01-01", primeiraParcela: "2024-07-01",
+  numParcelas: 100, parcelaFixa: 3500, parcelaVariavelBase: 3000,
+  dataChaves: "2029-01-01", valorChaves: 0, irGC: 0.15, corretagem: 0.06, irCDI: 0.15,
   inicioCorrecao: "2027-07-01", metodoSD: "nominal", idxCdi: 0.0093, idxIpca: 0.0038, idxIncc: 0.0045
 };
 let PARAM = {...DEFAULTS};
 try{ const s=localStorage.getItem("dash_params"); if(s) PARAM={...DEFAULTS, ...JSON.parse(s)}; }catch(e){}
 const HANTOWER = PARAM; // compatibilidade
 const CART_DEFAULT = {
-  fiis:[
-    {t:"IRDM11",q:499,pm:107.50},{t:"BARI11",q:145,pm:100.15},{t:"HGCR11",q:100,pm:100.95},
-    {t:"MCCI11",q:50,pm:100.94},{t:"RNGO11",q:102,pm:73.49},{t:"HGRE11",q:115,pm:125.00},
-    {t:"HGRU11",q:79,pm:128.41},{t:"RBRR11",q:98,pm:98.80},{t:"VILG11",q:75,pm:95.45}
-  ],
-  acoes:[{t:"ABEV3",q:500,pm:13.43,peso:50},{t:"ITUB4",q:400,pm:25.78,peso:50}],
+  fiis:[],
+  acoes:[],
   outros:[]
 };
 let CART=JSON.parse(JSON.stringify(CART_DEFAULT));
