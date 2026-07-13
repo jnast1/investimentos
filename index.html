@@ -417,6 +417,16 @@ async function serieBCB(cod,n){
   const j=await fetchJSON(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados/ultimos/${n}?formato=json`,Array.isArray);
   return j.map(x=>({data:parseBR(x.data),valor:parseFloat(x.valor)/100}));
 }
+// FONTE PREFERENCIAL: indices.json gerado diariamente pelo robô do repositório (GitHub Actions)
+async function indicesDoRepo(){
+  const r=await fetch("./indices.json?v="+Date.now(),{cache:"no-store"});
+  if(!r.ok)throw new Error("indices.json HTTP "+r.status);
+  const j=await r.json();
+  if(!j||!Array.isArray(j.cdi)||!j.cdi.length)throw new Error("indices.json vazio");
+  const conv=a=>(a||[]).map(x=>({data:parseBR(x.data),valor:parseFloat(x.valor)/100}))
+    .filter(x=>x.data instanceof Date&&!isNaN(x.data)&&!isNaN(x.valor));
+  return {cdi:conv(j.cdi),ipca:conv(j.ipca),incc:conv(j.incc),selic:conv(j.selic),atualizado:j.atualizado};
+}
 // PLANO B: índices via brapi (IPCA e Selic oficiais; CDI aproximado pela Selic)
 async function indicesViaBrapi(tk){
   const num=v=>{const x=parseFloat(String(v).replace(",","."));return isNaN(x)?null:x};
@@ -439,6 +449,15 @@ async function indicesViaBrapi(tk){
 async function buscarBCB(){
   setBadge("badgeBCB","b-load","◌ Buscando índices…"); el("stBCB").textContent="Conectando…";
   const tk=el("inpToken").value.trim()||localStorage.getItem("brapi_token")||"";
+  // 0) indices.json do próprio site — gerado diariamente pelo robô (GitHub Actions)
+  try{
+    const rep=await indicesDoRepo();
+    indices=rep;
+    const quando=rep.atualizado?new Date(rep.atualizado).toLocaleDateString("pt-BR"):"";
+    setBadge("badgeBCB","b-ok","● Índices do robô"+(quando?" ("+quando+")":""));
+    el("stBCB").textContent="Robô do repositório"+(quando?" — "+quando:""); el("stBCB").className="b pos";
+    el("idxErro").style.display="none"; renderTudo(); return;
+  }catch(e){console.warn("indices.json indisponível:",e&&e.message)}
   // Tentativa assíncrona de INCC no BCB (mescla se conseguir, ignora se a rede bloquear)
   const tentarIncc=()=>{
     serieBCB(7456,36).then(s=>{if(s&&s.length){indices.incc=s;renderTudo()}})
@@ -483,6 +502,13 @@ async function buscarBrapi(tk){
   if(!tk){setBadge("badgeBrapi","b-off","○ Cotações: informe o token");el("stBrapi").textContent="Aguardando token";return}
   setBadge("badgeBrapi","b-load","◌ Buscando cotações…"); el("stBrapi").textContent="Conectando…";
   const tickers=[...new Set([...CART.fiis.map(f=>f.t),...CART.acoes.map(a=>a.t)])].filter(Boolean);
+  if(tickers.length===0){
+    setBadge("badgeBrapi","b-ok","● brapi pronta — cadastre a carteira");
+    el("stBrapi").textContent="Token OK — carteira vazia"; el("stBrapi").className="b pos";
+    const dd=el("diagLinha"); if(dd){dd.style.color="var(--amber)";dd.style.display="block";
+      dd.textContent="Token validado. Cadastre suas ações e FIIs nas abas correspondentes e clique em Aplicar carteira para as cotações carregarem.";}
+    renderTudo(); return;
+  }
   // Plano gratuito da brapi: 1 ticker por requisição — buscamos individualmente em paralelo
   const res=await Promise.allSettled(tickers.map(t=>
     fetchJSON(`https://brapi.dev/api/quote/${encodeURIComponent(t)}?token=${encodeURIComponent(tk)}`,j=>j&&Array.isArray(j.results))));
