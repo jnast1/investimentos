@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Investimentos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --navy:#12355B; --navy-l:#1D4E7E; --paper:#FAFBFC; --ink:#1A2532; --slate:#5C6B7A;
+    --line:#DDE4EA; --green:#0E7C4A; --green-s:#E3F2EA; --red:#B3261E; --red-s:#FBEAE9;
+    --amber:#9A6700; --amber-s:#FFF4DB; --gold:#C79A3B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Libre Franklin','Segoe UI',sans-serif;background:var(--paper);color:var(--ink)}
+  .mono{font-family:'IBM Plex Mono',monospace}
+  header{background:var(--navy);color:#fff;padding:18px 24px}
+  .wrap{max-width:1200px;margin:0 auto}
+  .head-row{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center}
+  .eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.75;font-weight:600}
+  h1{font-size:22px;font-weight:800;margin-top:2px}
+  .badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;letter-spacing:.3px;white-space:nowrap}
+  .b-ok{background:var(--green-s);color:var(--green)} .b-load{background:var(--amber-s);color:var(--amber)}
+  .b-err{background:var(--red-s);color:var(--red)} .b-off{background:#EEF1F4;color:var(--slate)}
+  .btn{background:#fff;color:var(--navy);border:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .btn-navy{background:var(--navy);color:#fff}
+  .btn:disabled{background:var(--line);color:#fff;cursor:default}
+  .sub-head{font-size:11.5px;opacity:.7;margin-top:6px}
+  main{max-width:1200px;margin:0 auto;padding:20px 24px 60px}
+  nav{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+  .tab{background:transparent;color:var(--navy);border:none;border-radius:8px;padding:8px 16px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .tab.on{background:var(--navy);color:#fff}
+  .pane{display:none} .pane.on{display:block}
+  .verdict{border-radius:14px;padding:20px 24px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between;border:1.5px solid}
+  .v-title{font-size:12px;font-weight:700;letter-spacing:1.2px}
+  .v-num{font-size:30px;font-weight:600;margin-top:4px}
+  .v-desc{font-size:13px;color:var(--slate);margin-top:4px;max-width:560px}
+  .v-right{text-align:right}
+  .kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 18px;flex:1 1 160px;min-width:150px}
+  .kpi .t{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--slate);font-weight:600}
+  .kpi .v{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;margin-top:4px;line-height:1.1}
+  .kpi .s{font-size:11.5px;color:var(--slate);margin-top:3px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  .card h3{font-size:15px;color:var(--navy);font-weight:700;margin-bottom:12px}
+  .card-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .card-head h3{margin-bottom:0}
+  .note{font-size:12px;color:var(--slate);margin-top:8px;line-height:1.5}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--slate);border-bottom:2px solid var(--navy);font-weight:700;white-space:nowrap;background:#fff}
+  td{padding:7px 10px;font-size:13px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th.r,td.r{text-align:right}
+  td.m{font-family:'IBM Plex Mono',monospace}
+  td.b{font-weight:600}
+  .pos{color:var(--green)} .neg{color:var(--red)}
+  .scroll{overflow-x:auto;max-height:460px;overflow-y:auto}
+  .scroll thead{position:sticky;top:0}
+  tr.past{background:#F4F7FA} tr.best{background:var(--amber-s)} tr.total{background:#F0F4F8}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .chart-box{position:relative;height:340px}
+  .chart-sm{position:relative;height:260px}
+  input[type=text],input[type=password],input[type=number]{padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:'IBM Plex Mono',monospace}
+  .cfg-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .cfg-row input{flex:1 1 280px}
+  p{font-size:13.5px;line-height:1.55}
+  .radio-row{display:flex;gap:10px;align-items:center;font-size:13px;flex-wrap:wrap}
+  .radio-row label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .radio-row input[type=number]{width:70px;padding:4px 6px}
+  .alert-err{padding:20px;background:var(--red-s);border-radius:8px;font-size:13.5px}
+  .okmsg{color:var(--green);font-size:13px;font-weight:600}
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+  .pgrid label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--slate)}
+  .pgrid input,.pgrid select{padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-size:13.5px;font-family:'IBM Plex Mono',monospace;width:100%}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="head-row">
+      <div>
+        <div class="eyebrow">Painel de decisão · dados ao vivo</div>
+        <h1>Painel de Investimentos</h1>
+      </div>
+      <div class="badges">
+        <span id="badgeBCB" class="badge b-load">◌ Buscando BCB…</span>
+        <span id="badgeBrapi" class="badge b-off">○ Cotações: informe o token</span>
+        <button class="btn" onclick="atualizarTudo()">↻ Atualizar agora</button>
+      </div>
+    </div>
+    <div class="sub-head" id="subHead"></div>
+  </div>
+</header>
+
+<main>
+  <nav>
+    <button class="tab on" data-p="visao" onclick="irAba(this)">Visão geral</button>
+    <button class="tab" data-p="imovel" onclick="irAba(this)">Imóvel</button>
+    <button class="tab" data-p="fiis" onclick="irAba(this)">FIIs</button>
+    <button class="tab" data-p="acoes" onclick="irAba(this)">Ações</button>
+    <button class="tab" data-p="indices" onclick="irAba(this)">Índices</button>
+    <button class="tab" data-p="config" onclick="irAba(this)">⚙ Configuração</button>
+  </nav>
+
+  <!-- VISÃO GERAL -->
+  <section class="pane on" id="p-visao">
+    <div class="verdict" id="verdict"></div>
+    <div class="kpis" id="kpisVisao"></div>
+    <div class="card">
+      <h3>Imóvel × Custo de oportunidade — mês a mês (passado real + projeção)</h3>
+      <div class="chart-box"><canvas id="chMain"></canvas></div>
+      <div class="note">Meses passados usam CDI e INCC-M reais do Banco Central; meses futuros usam a média dos últimos 12 meses. Onde a linha azul supera a laranja, vender naquele mês ganha do CDI.</div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Alocação do patrimônio</h3>
+        <div class="chart-sm"><canvas id="chPie"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Resumo executivo</h3>
+        <table><tbody id="resumoExec"></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- IMÓVEL -->
+  <section class="pane" id="p-imovel">
+    <div class="kpis" id="kpisImovel"></div>
+    <div class="card">
+      <div class="card-head">
+        <h3>Premissa de valorização do imóvel</h3>
+        <div class="radio-row">
+          <label><input type="radio" name="valz" value="incc" checked onchange="mudarPremissa()"> INCC-M real</label>
+          <label><input type="radio" name="valz" value="fixa" onchange="mudarPremissa()"> Taxa fixa:</label>
+          <input type="number" id="taxaFixa" value="5.0" step="0.5" min="-10" max="30" disabled onchange="mudarPremissa()"> % a.a.
+        </div>
+      </div>
+      <div class="chart-sm" style="height:280px"><canvas id="chSaldo"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Análise mês a mês — se vender em cada mês (tabela completa)</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Mês</th><th class="r">Parcela</th><th class="r">Pago acum.</th>
+            <th class="r">Saldo devedor</th><th class="r">Valor imóvel</th>
+            <th class="r">Custo oportun.</th><th class="r">Venda líquida</th><th class="r">Vantagem</th>
+          </tr></thead>
+          <tbody id="tbImovel"></tbody>
+        </table>
+      </div>
+      <div class="note">✓ parcela já paga · ★ melhor mês projetado · Metodologia: venda líquida = valor do imóvel − corretagem (6%) − IR sobre ganho (15%) − saldo devedor. Custo de oportunidade = aportes capitalizados ao CDI líquido de IR (15%).</div>
+    </div>
+  </section>
+
+  <!-- FIIs -->
+  <section class="pane" id="p-fiis">
+    <div class="kpis" id="kpisFiis"></div>
+    <div class="card">
+      <h3>Carteira de FIIs — posição detalhada</h3>
+      <div class="scroll" style="max-height:none">
+        <table>
+          <thead><tr>
+            <th>Fundo</th><th class="r">Cotas</th><th class="r">Preço médio</th>
+            <th class="r" id="thCotFii">Cotação (ref.)</th><th class="r">Var. dia</th>
+            <th class="r">Saldo</th><th class="r">Resultado</th>
+          </tr></thead>
+          <tbody id="tbFiis"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Distribuição por fundo</h3>
+      <div class="chart-sm"><canvas id="chFiis"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>✏️ Editar carteira de FIIs</h3>
+      <p style="color:var(--slate)">Adicione, altere ou remova fundos pela sigla. Clique em Aplicar para salvar e recotar.</p>
+      <div class="scroll" style="max-height:none"><table>
+        <thead><tr><th>Sigla</th><th class="r">Cotas</th><th class="r">Preço médio (R$)</th><th></th></tr></thead>
+        <tbody id="edFiis"></tbody>
+      </table></div>
+      <div class="cfg-row" style="margin-top:12px">
+        <button class="btn" style="border:1.5px solid var(--line)" onclick="addLinha('fiis')">+ Adicionar FII</button>
+        <button class="btn btn-navy" onclick="aplicarCarteira()">Aplicar carteira</button>
+        <span id="cartOk" class="okmsg" style="display:none">✓ Carteira salva</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- AÇÕES -->
+  <section class="pane" id="p-acoes">
+    <div class="card">
+      <h3>Carteira de ações</h3>
+      <div class="scroll" style="max-height:none">
+        <table>
+          <thead><tr>
+            <th>Ativo</th><th class="r">Qtde</th><th class="r">Preço médio</th>
+            <th class="r" id="thCotAcao">Cotação (ref.)</th><th class="r">Var. dia</th>
+            <th class="r">Saldo</th><th class="r">Resultado</th>
+          </tr></thead>
+          <tbody id="tbAcoes"></tbody>
+        </table>
+      </div>
+      <div class="note">Como ler: <strong>Saldo = quantidade × cotação ao vivo</strong>, ou seja, o valor de mercado da posição hoje. O preço médio é o seu custo de aquisição e serve para calcular o Resultado. Cotações ao vivo exigem o token gratuito da brapi (aba Configuração).</div>
+    </div>
+    <div class="card">
+      <h3>✏️ Editar carteira de ações</h3>
+      <p style="color:var(--slate)">Monte a carteira pela sigla (10, 15, quantas quiser). O peso (%) serve para distribuir um valor total entre as ações; a quantidade é o que vale para o saldo.</p>
+      <div class="scroll" style="max-height:none"><table>
+        <thead><tr><th>Sigla</th><th class="r">Quantidade</th><th class="r">Preço médio (R$)</th><th class="r">Peso (%)</th><th></th></tr></thead>
+        <tbody id="edAcoes"></tbody>
+      </table></div>
+      <div class="cfg-row" style="margin-top:12px">
+        <button class="btn" style="border:1.5px solid var(--line)" onclick="addLinha('acoes')">+ Adicionar ação</button>
+        <button class="btn" style="border:1.5px solid var(--line)" onclick="carregarIbov()">Carregar cesta Ibovespa (top 15)</button>
+        <button class="btn btn-navy" onclick="aplicarCarteira()">Aplicar carteira</button>
+      </div>
+      <div class="cfg-row" style="margin-top:12px">
+        <label style="font-size:13px;font-weight:600;color:var(--slate)">Valor total a distribuir (R$):</label>
+        <input type="number" id="valDistrib" step="1000" value="100000" style="width:140px;padding:8px 10px">
+        <button class="btn" style="border:1.5px solid var(--line)" onclick="usarSaldoAtual()">Usar saldo atual da carteira</button>
+        <button class="btn" style="border:1.5px solid var(--line)" onclick="distribuirPesos()">Distribuir pelos pesos</button>
+        <span class="note" style="margin-top:0">Calcula as quantidades usando a cotação ao vivo (ou o preço médio, se offline).</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>💼 Fundos de investimento e outros ativos (manual)</h3>
+      <p style="color:var(--slate)">Fundos CVM (Trend Gold, Tesouro, LCI/LCA etc.) não têm cotação pública por sigla; informe o nome e o <strong>valor atual da posição</strong> (o saldo de hoje no extrato da corretora, que já embute todos os rendimentos acumulados). Entram no patrimônio total e no gráfico de alocação.</p>
+      <div class="scroll" style="max-height:none"><table>
+        <thead><tr><th>Nome do ativo</th><th class="r">Valor atual (R$)</th><th></th></tr></thead>
+        <tbody id="edOutros"></tbody>
+      </table></div>
+      <div class="cfg-row" style="margin-top:12px">
+        <button class="btn" style="border:1.5px solid var(--line)" onclick="addLinha('outros')">+ Adicionar ativo</button>
+        <button class="btn btn-navy" onclick="aplicarCarteira()">Aplicar carteira</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ÍNDICES -->
+  <section class="pane" id="p-indices">
+    <div class="kpis" id="kpisIdx"></div>
+    <div class="card">
+      <h3>Índices mensais — últimos 24 meses (dados reais do Banco Central)</h3>
+      <div id="idxErro" style="display:none" class="alert-err">Não foi possível conectar à API do Banco Central agora. Clique em "Atualizar agora" para tentar de novo.</div>
+      <div class="chart-box" style="height:300px"><canvas id="chIdx"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Tabela de índices (% ao mês)</h3>
+      <div class="scroll" style="max-height:380px">
+        <table>
+          <thead><tr><th>Mês</th><th class="r">CDI</th><th class="r">IPCA</th><th class="r">INCC-M</th></tr></thead>
+          <tbody id="tbIdx"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONFIG -->
+  <section class="pane" id="p-config">
+    <div class="card">
+      <h3>Token brapi — cotações ao vivo de FIIs e ações</h3>
+      <p>A API do Banco Central funciona sem cadastro. Para as cotações da B3 (FIIs e ações), a brapi exige um token <strong>gratuito</strong>: crie uma conta em <strong>brapi.dev</strong>, copie o token do painel e cole abaixo. Ele fica salvo no seu navegador e as cotações carregam automaticamente a cada abertura.</p>
+      <div class="cfg-row" style="margin-top:12px">
+        <input type="password" id="inpToken" placeholder="Cole aqui o seu token brapi">
+        <button class="btn btn-navy" onclick="salvarToken()">Salvar e conectar</button>
+        <span id="tokenOk" class="okmsg" style="display:none">✓ Token salvo</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Fontes de dados conectadas</h3>
+      <table>
+        <thead><tr><th>Dado</th><th>Fonte</th><th>Autenticação</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="b">CDI, IPCA, INCC-M, Selic</td><td>API SGS — Banco Central do Brasil</td><td>Nenhuma</td><td class="b" id="stBCB">Conectando…</td></tr>
+          <tr><td class="b">Cotações FIIs e ações</td><td>brapi.dev (dados B3)</td><td>Token gratuito</td><td class="b" id="stBrapi">Aguardando token</td></tr>
+        </tbody>
+      </table>
+      <div class="note">Sem o token, o dashboard continua funcionando: os FIIs usam os preços médios de aquisição como referência e todo o modelo do imóvel roda normalmente com os índices do Banco Central.</div>
+      <div class="note" id="diagLinha" style="display:none;color:var(--red);font-weight:600"></div>
+    </div>
+    <div class="card">
+      <h3>Parâmetros do imóvel — editáveis</h3>
+      <p style="color:var(--slate)">Altere qualquer valor e clique em Aplicar. Tudo fica salvo no navegador e o modelo inteiro recalcula na hora.</p>
+      <div class="pgrid">
+        <label>Valor de tabela (R$)<input type="number" id="pValorTabela" step="1000"></label>
+        <label>Entrada total (R$)<input type="number" id="pEntrada" step="1000"></label>
+        <label>Parcelas da entrada (nº)<input type="number" id="pEntParc" min="1" max="60" step="1"></label>
+        <label>Periodicidade da entrada<select id="pEntPer">
+          <option value="1">Mensal</option><option value="2">Bimestral</option>
+          <option value="3">Trimestral</option><option value="6">Semestral</option>
+          <option value="12">Anual</option>
+        </select></label>
+        <label>1ª parcela da entrada<input type="date" id="pEntData"></label>
+        <label>Data da compra<input type="date" id="pDataCompra"></label>
+        <label>Primeira parcela<input type="date" id="pDataPrimeira"></label>
+        <label>Número de parcelas<input type="number" id="pNum" min="1" max="420"></label>
+        <label>Parcela fixa (R$)<input type="number" id="pFixa" step="0.01"></label>
+        <label>Parcela variável base (R$)<input type="number" id="pVar" step="0.01"></label>
+        <label>Entrega das chaves<input type="date" id="pDataChaves"></label>
+        <label>Valor das chaves (R$)<input type="number" id="pValorChaves" step="1000"></label>
+        <label>IR ganho de capital (%)<input type="number" id="pIrGC" step="0.5" min="0" max="35"></label>
+        <label>Corretagem na venda (%)<input type="number" id="pCorretagem" step="0.5" min="0" max="15"></label>
+        <label>IR sobre CDI (%)<input type="number" id="pIrCDI" step="0.5" min="0" max="27.5"></label>
+        <label>Saldo devedor<select id="pMetodoSD">
+          <option value="nominal">Nominal (soma das parcelas restantes)</option>
+          <option value="vp">Valor presente (descontado ao CDI líquido)</option>
+        </select></label>
+      </div>
+      <div class="cfg-row" style="margin-top:14px">
+        <button class="btn btn-navy" onclick="aplicarParams()">Aplicar e salvar</button>
+        <button class="btn" style="border:1.5px solid var(--line)" onclick="restaurarParams()">Restaurar padrão da planilha</button>
+        <span id="paramsOk" class="okmsg" style="display:none">✓ Aplicado</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Índices manuais — plano C (quando as APIs estiverem bloqueadas)</h3>
+      <p style="color:var(--slate)">Se nenhuma fonte automática conectar, o modelo usa estes valores médios mensais. O INCC-M não existe na brapi e o IPEA bloqueia acesso automatizado, então quando o Banco Central estiver inacessível ele depende deste campo: atualize 1 vez por mês consultando "INCC-M" no portal da FGV ou no Google (leva 10 segundos).</p>
+      <div class="pgrid">
+        <label>CDI (% ao mês)<input type="number" id="mCdi" step="0.01"></label>
+        <label>IPCA (% ao mês)<input type="number" id="mIpca" step="0.01"></label>
+        <label>INCC-M (% ao mês)<input type="number" id="mIncc" step="0.01"></label>
+      </div>
+      <div class="cfg-row" style="margin-top:14px">
+        <button class="btn btn-navy" onclick="aplicarParams()">Aplicar e salvar</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+// ============================================================
+// CONFIGURAÇÃO (extraída da planilha original)
+// ============================================================
+const DEFAULTS = {
+  valorTabela: 500000, entrada: 0, entradaParcelas: 1, entradaPeriodo: 1, entradaData: "2024-01-01", dataCompra: "2024-01-01", primeiraParcela: "2024-07-01",
+  numParcelas: 100, parcelaFixa: 3500, parcelaVariavelBase: 3000,
+  dataChaves: "2029-01-01", valorChaves: 0, irGC: 0.15, corretagem: 0.06, irCDI: 0.15,
+  metodoSD: "nominal", idxCdi: 0.0093, idxIpca: 0.0038, idxIncc: 0.0045
+};
+let PARAM = {...DEFAULTS};
+try{ const s=localStorage.getItem("dash_params"); if(s) PARAM={...DEFAULTS, ...JSON.parse(s)}; }catch(e){}
+const HANTOWER = PARAM; // compatibilidade
+const CART_DEFAULT = {
+  fiis:[],
+  acoes:[],
+  outros:[]
+};
+let CART=JSON.parse(JSON.stringify(CART_DEFAULT));
+try{const s=localStorage.getItem("dash_carteiras");if(s){const c=JSON.parse(s);
+  CART={fiis:c.fiis||CART.fiis,acoes:c.acoes||CART.acoes,outros:c.outros||[]}}}catch(e){}
+// Cesta aproximada das maiores ponderações do Ibovespa (pesos normalizados, ajuste livre)
+const IBOV15=[
+  {t:"VALE3",peso:12},{t:"ITUB4",peso:9},{t:"PETR4",peso:8},{t:"PETR3",peso:5},
+  {t:"BBDC4",peso:5},{t:"B3SA3",peso:4},{t:"WEGE3",peso:4},{t:"ABEV3",peso:4},
+  {t:"BBAS3",peso:4},{t:"ITSA4",peso:3},{t:"ELET3",peso:3},{t:"SUZB3",peso:3},
+  {t:"RENT3",peso:3},{t:"PRIO3",peso:3},{t:"RDOR3",peso:3}
+];
+// Séries reais do BCB embutidas no arquivo (SGS 4391 e 433), capturadas em 12/07/2026.
+// Garantem que o dashboard funcione mesmo sem nenhuma API. As APIs, quando conectam, atualizam por cima.
+const EMB_CDI=[["2023-06",1.07],["2023-07",1.07],["2023-08",1.14],["2023-09",0.97],["2023-10",1.00],["2023-11",0.92],["2023-12",0.89],["2024-01",0.97],["2024-02",0.80],["2024-03",0.83],["2024-04",0.89],["2024-05",0.83],["2024-06",0.79],["2024-07",0.91],["2024-08",0.87],["2024-09",0.84],["2024-10",0.93],["2024-11",0.79],["2024-12",0.93],["2025-01",1.01],["2025-02",0.99],["2025-03",0.96],["2025-04",1.06],["2025-05",1.14],["2025-06",1.10],["2025-07",1.28],["2025-08",1.16],["2025-09",1.22],["2025-10",1.28],["2025-11",1.05],["2025-12",1.22],["2026-01",1.16],["2026-02",1.00],["2026-03",1.21],["2026-04",1.09],["2026-05",0.75]];
+const EMB_IPCA=[["2023-06",-0.08],["2023-07",0.12],["2023-08",0.23],["2023-09",0.26],["2023-10",0.24],["2023-11",0.28],["2023-12",0.56],["2024-01",0.42],["2024-02",0.83],["2024-03",0.16],["2024-04",0.38],["2024-05",0.46],["2024-06",0.21],["2024-07",0.38],["2024-08",-0.02],["2024-09",0.44],["2024-10",0.56],["2024-11",0.39],["2024-12",0.52],["2025-01",0.16],["2025-02",1.31],["2025-03",0.56],["2025-04",0.43],["2025-05",0.26],["2025-06",0.24],["2025-07",0.26],["2025-08",-0.11],["2025-09",0.48],["2025-10",0.09],["2025-11",0.18],["2025-12",0.33],["2026-01",0.33],["2026-02",0.70],["2026-03",0.88],["2026-04",0.67]];
+function indicesEmbutidos(){
+  const conv=arr=>arr.map(([k,v])=>{const[a,m]=k.split("-");return{data:new Date(+a,+m-1,1),valor:v/100}});
+  return {cdi:conv(EMB_CDI),ipca:conv(EMB_IPCA),incc:[],selic:[]};
+}
+const NAVY="#12355B", ORANGE="#D07C2E", TEAL="#1B8A8F", BLUE="#2E6DA4", RED="#B3261E", GREEN="#0E7C4A";
+const PIECOLORS=["#12355B","#2E6DA4","#1B8A8F","#C79A3B","#D07C2E","#7A5195","#5C6B7A","#0E7C4A","#B3261E"];
+
+// Estado global
+let indices=null, cotacoes={}, charts={};
+let premissa={modo:"incc", taxaAA:0.05};
+
+// ============================================================
+// UTILITÁRIOS
+// ============================================================
+const fmtBRL=(v,d=0)=>v==null||isNaN(v)?"—":v.toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtPct=(v,d=2)=>v==null||isNaN(v)?"—":(v*100).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d})+"%";
+const parseBR=s=>{const[d,m,a]=s.split("/");return new Date(+a,+m-1,+d)};
+const mesLbl=d=>d.toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}).replace(".","");
+const addM=(d,n)=>{const x=new Date(d);x.setMonth(x.getMonth()+n);return x};
+const mKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+const el=id=>document.getElementById(id);
+const setBadge=(id,cls,txt)=>{const b=el(id);b.className="badge "+cls;b.textContent=txt};
+
+// ============================================================
+// BUSCA AUTOMÁTICA — Banco Central
+// ============================================================
+let diagErro="";
+// Busca resiliente: tenta direto; se CORS/rede barrar, tenta por proxies públicos
+async function fetchJSON(url,valida){
+  const tentativas=[
+    url,
+    "https://api.allorigins.win/raw?url="+encodeURIComponent(url),
+    "https://corsproxy.io/?url="+encodeURIComponent(url),
+    "https://api.codetabs.com/v1/proxy?quest="+encodeURIComponent(url)
+  ];
+  let ultimoErro=null;
+  for(const u of tentativas){
+    try{
+      const r=await fetch(u,{cache:"no-store"});
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      const j=await r.json();
+      if(valida&&!valida(j))throw new Error("formato inesperado");
+      return j;
+    }catch(e){ultimoErro=e}
+  }
+  throw ultimoErro||new Error("falha de rede");
+}
+async function serieBCB(cod,n){
+  const j=await fetchJSON(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados/ultimos/${n}?formato=json`,Array.isArray);
+  return j.map(x=>({data:parseBR(x.data),valor:parseFloat(x.valor)/100}));
+}
+// PLANO B: índices via brapi (IPCA e Selic oficiais; CDI aproximado pela Selic)
+async function indicesViaBrapi(tk){
+  const num=v=>{const x=parseFloat(String(v).replace(",","."));return isNaN(x)?null:x};
+  const inf=await fetchJSON(`https://brapi.dev/api/v2/inflation?country=brazil&historical=true&sortBy=date&sortOrder=desc&token=${encodeURIComponent(tk)}`);
+  const ipca=(inf.inflation||inf.results||[]).map(x=>({data:parseBR(x.date),valor:(num(x.value)??0)/100}))
+    .filter(x=>x.data instanceof Date&&!isNaN(x.data)&&x.valor!==null).slice(0,36).reverse();
+  const pr=await fetchJSON(`https://brapi.dev/api/v2/prime-rate?country=brazil&historical=true&sortBy=date&sortOrder=desc&token=${encodeURIComponent(tk)}`);
+  const lista=pr["prime-rate"]||pr.prime_rate||pr.primeRate||pr.results||[];
+  const porMes={};
+  lista.forEach(x=>{const d=parseBR(x.date);if(!(d instanceof Date)||isNaN(d))return;
+    const k=mKey(d);const aa=num(x.value);if(aa==null)return;
+    if(!porMes[k])porMes[k]={data:new Date(d.getFullYear(),d.getMonth(),1),aa:aa/100}});
+  const cdi=Object.values(porMes).sort((a,b)=>a.data-b.data).slice(-36)
+    .map(x=>({data:x.data,valor:Math.pow(1+x.aa,1/12)-1}));
+  const primeiro=lista.find(x=>num(x.value)!=null);
+  const selic=primeiro?[{data:parseBR(primeiro.date),valor:num(primeiro.value)/100}]:[];
+  if(!cdi.length&&!ipca.length)throw new Error("brapi retornou séries vazias");
+  return {cdi,ipca,incc:[],selic};
+}
+async function buscarBCB(){
+  setBadge("badgeBCB","b-load","◌ Buscando índices…"); el("stBCB").textContent="Conectando…";
+  const tk=el("inpToken").value.trim()||localStorage.getItem("brapi_token")||"";
+  // Tentativa assíncrona de INCC no BCB (mescla se conseguir, ignora se a rede bloquear)
+  const tentarIncc=()=>{
+    serieBCB(7456,36).then(s=>{if(s&&s.length){indices.incc=s;renderTudo()}})
+      .catch(()=>serieBCB(192,36).then(s=>{if(s&&s.length){indices.incc=s;renderTudo()}}).catch(()=>{}));
+  };
+  // 1) brapi primeiro — é a fonte que conecta na sua rede
+  if(tk){
+    try{
+      indices=await indicesViaBrapi(tk);
+      setBadge("badgeBCB","b-ok","● Índices via brapi"); el("stBCB").textContent="Via brapi"; el("stBCB").className="b pos";
+      el("idxErro").style.display="none"; tentarIncc(); renderTudo(); return;
+    }catch(e){console.warn("Índices via brapi indisponíveis neste plano:",e&&e.message)}
+  }
+  // 2) Banco Central direto/proxies
+  try{
+    const [cdi,ipca,selic]=await Promise.all([serieBCB(4391,36),serieBCB(433,36),serieBCB(432,3)]);
+    let incc=[];
+    try{incc=await serieBCB(7456,36)}catch(e){try{incc=await serieBCB(192,36)}catch(e2){incc=[]}}
+    indices={cdi,ipca,incc,selic};
+    setBadge("badgeBCB","b-ok","● Banco Central conectado"); el("stBCB").textContent="Conectado"; el("stBCB").className="b pos";
+    el("idxErro").style.display="none";
+  }catch(e){
+    console.error(e);
+    diagErro="BCB: "+(e&&e.message?e.message:String(e));
+    // 3) Dados de fábrica (CDI e IPCA reais embutidos no arquivo)
+    indices=indicesEmbutidos();
+    setBadge("badgeBCB","b-load","● Índices de fábrica (até mai/2026)");
+    el("stBCB").textContent="Fábrica (mai/2026)"; el("stBCB").className="b";
+    el("stBCB").style.color="var(--amber)";
+    el("idxErro").style.display="none"; tentarIncc();
+    const d=el("diagLinha"); if(d){d.style.color="var(--amber)";
+      d.textContent="APIs de índices bloqueadas nesta rede ("+diagErro+"). Usando CDI e IPCA reais embutidos no arquivo (até mai/2026) e INCC manual. Cotações da brapi seguem ao vivo.";
+      d.style.display="block"}
+  }
+  renderTudo();
+}
+
+// ============================================================
+// BUSCA AUTOMÁTICA — brapi
+// ============================================================
+async function buscarBrapi(tk){
+  if(!tk){setBadge("badgeBrapi","b-off","○ Cotações: informe o token");el("stBrapi").textContent="Aguardando token";return}
+  setBadge("badgeBrapi","b-load","◌ Buscando cotações…"); el("stBrapi").textContent="Conectando…";
+  const tickers=[...new Set([...CART.fiis.map(f=>f.t),...CART.acoes.map(a=>a.t)])].filter(Boolean);
+  // Plano gratuito da brapi: 1 ticker por requisição — buscamos individualmente em paralelo
+  const res=await Promise.allSettled(tickers.map(t=>
+    fetchJSON(`https://brapi.dev/api/quote/${encodeURIComponent(t)}?token=${encodeURIComponent(tk)}`,j=>j&&Array.isArray(j.results))));
+  cotacoes={}; const falhas=[];
+  res.forEach((r,i)=>{
+    const q=r.status==="fulfilled"?(r.value.results&&r.value.results[0]):null;
+    if(q&&q.regularMarketPrice!=null){
+      cotacoes[q.symbol]={preco:q.regularMarketPrice,var:(q.regularMarketChangePercent||0)/100};
+    }else falhas.push(tickers[i]);
+  });
+  const ok=Object.keys(cotacoes).length;
+  const d=el("diagLinha");
+  if(ok>0){
+    setBadge("badgeBrapi","b-ok",`● B3 (brapi): ${ok}/${tickers.length} cotações`);
+    el("stBrapi").textContent=`Conectado (${ok}/${tickers.length})`; el("stBrapi").className="b pos";
+    if(falhas.length&&d){d.style.color="var(--amber)";d.style.display="block";
+      d.textContent="Sem cotação para: "+falhas.join(", ")+" (verifique a sigla ou o plano do token).";}
+  }else{
+    diagErro="brapi: nenhuma cotação retornou (limite do plano ou tickers inválidos)";
+    setBadge("badgeBrapi","b-err","✕ brapi falhou"); el("stBrapi").textContent="Falhou — confira o token"; el("stBrapi").className="b neg";
+    if(d){d.style.color="var(--red)";d.textContent="Diagnóstico: "+diagErro;d.style.display="block"}
+  }
+  renderTudo();
+}
+function salvarToken(){
+  const tk=el("inpToken").value.trim();
+  if(!tk)return;
+  try{localStorage.setItem("brapi_token",tk)}catch(e){}
+  el("tokenOk").style.display="inline";
+  buscarBrapi(tk);
+}
+function atualizarTudo(){
+  buscarBCB();
+  const tk=el("inpToken").value.trim()||localStorage.getItem("brapi_token")||"";
+  if(tk)buscarBrapi(tk);
+}
+
+// ============================================================
+// MÉDIAS
+// ============================================================
+function calcMedias(){
+  const m12=s=>!s||!s.length?null:s.slice(-12).reduce((a,x)=>a+x.valor,0)/Math.min(12,s.length);
+  const ac12=s=>!s||!s.length?null:s.slice(-12).reduce((a,x)=>a*(1+x.valor),1)-1;
+  return {
+    cdi:m12(indices?.cdi)??PARAM.idxCdi, ipca:m12(indices?.ipca)??PARAM.idxIpca, incc:m12(indices?.incc)??PARAM.idxIncc,
+    cdiAtual:indices?.cdi?.length?indices.cdi.at(-1).valor:null,
+    selic:indices?.selic?.length?indices.selic.at(-1).valor:null,
+    cdi12:ac12(indices?.cdi), ipca12:ac12(indices?.ipca), incc12:ac12(indices?.incc)
+  };
+}
+
+// ============================================================
+// MOTOR DE CÁLCULO — modelo Hantower
+// ============================================================
+function calcularModelo(){
+  const med=calcMedias();
+  const hoje=new Date();
+  const mCdi={},mIncc={};
+  (indices?.cdi||[]).forEach(x=>mCdi[mKey(x.data)]=x.valor);
+  (indices?.incc||[]).forEach(x=>mIncc[mKey(x.data)]=x.valor);
+  const cdiDe=d=>mCdi[mKey(d)]??med.cdi;
+  const inccDe=d=>mIncc[mKey(d)]??med.incc;
+  const ini=new Date(PARAM.primeiraParcela+"T12:00:00");
+  const compra=new Date(PARAM.dataCompra+"T12:00:00");
+  const dtChaves=new Date(PARAM.dataChaves+"T12:00:00");
+  const irCdiLiq=PARAM.irCDI;
+  const valMes=premissa.modo==="fixa"?Math.pow(1+premissa.taxaAA,1/12)-1:null;
+
+  // Cronograma de parcelas (variável corrigida por INCC desde a 1ª parcela)
+  const parcelas=[]; let fIncc=1;
+  for(let i=0;i<PARAM.numParcelas;i++){
+    const data=addM(ini,i); fIncc*=1+inccDe(data);
+    parcelas.push({n:i+1,data,total:PARAM.parcelaFixa+PARAM.parcelaVariavelBase*fIncc,paga:data<=hoje});
+  }
+
+  // Fluxos da entrada (à vista ou parcelada em N meses a partir da data informada)
+  const entFluxo={};
+  if(PARAM.entrada>0){
+    const nE=Math.max(1,Math.round(PARAM.entradaParcelas||1));
+    const dE=new Date((PARAM.entradaData||PARAM.dataCompra)+"T12:00:00");
+    const passo=Math.max(1,Math.round(PARAM.entradaPeriodo||1));
+    for(let i=0;i<nE;i++){const k=mKey(addM(dE,i*passo));entFluxo[k]=(entFluxo[k]||0)+PARAM.entrada/nE}
+  }
+  // Pré-período: do 1º evento (compra ou 1ª parcela da entrada) até a 1ª prestação
+  let pago=0,co=0,fImv=1;
+  let d=new Date(compra);
+  if(PARAM.entrada>0){const dE=new Date((PARAM.entradaData||PARAM.dataCompra)+"T12:00:00");if(dE<d)d=new Date(dE)}
+  // (fluxos de entrada que caem depois da 1ª prestação são somados dentro do loop de parcelas)
+  while(mKey(d)<mKey(ini)){
+    const fE=entFluxo[mKey(d)]||0;
+    co=co*(1+cdiDe(d)*(1-irCdiLiq))+fE; pago+=fE;
+    if(d>=compra)fImv*=premissa.modo==="incc"?1+inccDe(d):1+valMes;
+    d=addM(d,1);
+  }
+
+  // Cenários mês a mês
+  const linhas=[];
+  const kChaves=mKey(dtChaves);
+  for(let i=0;i<parcelas.length;i++){
+    const p=parcelas[i];
+    const extraChaves=mKey(p.data)===kChaves?(+PARAM.valorChaves||0):0;
+    const extraEntrada=entFluxo[mKey(p.data)]||0;
+    const aporte=p.total+extraChaves+extraEntrada;
+    co=co*(1+cdiDe(p.data)*(1-irCdiLiq))+aporte;
+    pago+=aporte;
+    fImv*=premissa.modo==="incc"?1+inccDe(p.data):1+valMes;
+    const vImv=PARAM.valorTabela*fImv;
+
+    // Saldo devedor: parcelas restantes + chaves futuras
+    const rest=parcelas.slice(i+1);
+    let sd;
+    if(PARAM.metodoSD==="vp"){
+      const r=med.cdi*(1-irCdiLiq);
+      sd=rest.reduce((s,x,j)=>s+x.total/Math.pow(1+r,j+1),0);
+      if(dtChaves>p.data){
+        const mesesAte=Math.max(1,Math.round((dtChaves-p.data)/2629800000));
+        sd+=(+PARAM.valorChaves||0)/Math.pow(1+r,mesesAte);
+      }
+    }else{
+      sd=rest.reduce((s,x)=>s+x.total,0);
+      if(dtChaves>p.data)sd+=(+PARAM.valorChaves||0);
+    }
+
+    const corr=vImv*PARAM.corretagem;
+    const irgc=Math.max(0,(vImv-pago)*PARAM.irGC);
+    const liq=vImv-corr-irgc-sd;
+    linhas.push({n:p.n,data:p.data,label:mesLbl(p.data),parcela:aporte,pago,sd,vImv,co,liq,vant:liq-co,paga:p.paga});
+  }
+  const fut=linhas.filter(l=>l.data>=hoje);
+  const melhor=fut.length?fut.reduce((a,b)=>b.vant>a.vant?b:a,fut[0]):null;
+  const atual=[...linhas].reverse().find(l=>l.data<=hoje)||linhas[0];
+  return {linhas,melhor,atual,med};
+}
+
+// ============================================================
+// RENDERIZAÇÃO
+// ============================================================
+function killChart(id){if(charts[id]){charts[id].destroy();delete charts[id]}}
+function novoChart(id,cfg){killChart(id);charts[id]=new Chart(el(id),cfg)}
+
+function renderTudo(){
+  const M=calcularModelo();
+  const med=M.med;
+
+  // FIIs / Ações consolidados
+  const fiisL=CART.fiis.map(f=>{const c=cotacoes[f.t];const p=c?.preco??f.pm;
+    return{...f,preco:p,live:!!c,varr:c?.var??null,saldo:p*f.q,custo:f.pm*f.q,res:(p-f.pm)*f.q}});
+  const fiisTot=fiisL.reduce((s,x)=>s+x.saldo,0), fiisCusto=fiisL.reduce((s,x)=>s+x.custo,0);
+  const acoesL=CART.acoes.map(a=>{const c=cotacoes[a.t];const p=c?.preco??a.pm;
+    return{...a,preco:p,live:!!c,varr:c?.var??null,saldo:p*a.q,res:(p-a.pm)*a.q}});
+  const acoesTot=acoesL.reduce((s,x)=>s+x.saldo,0);
+  const outrosTot=CART.outros.reduce((s,x)=>s+(+x.v||0),0);
+  const equity=Math.max(0,(M.atual?.vImv||0)-(M.atual?.sd||0));
+  const patrTot=equity+fiisTot+acoesTot+outrosTot;
+
+  // Cabeçalho
+  el("subHead").innerHTML=`Última busca: ${new Date().toLocaleString("pt-BR")}`+
+    (med.cdi12!=null?` · CDI 12m: ${fmtPct(med.cdi12)} · IPCA 12m: ${fmtPct(med.ipca12)}`:"")+
+    (med.incc12!=null?` · INCC 12m: ${fmtPct(med.incc12)}`:"");
+
+  // ---- VISÃO GERAL ----
+  const v=M.atual?.vant||0, pos=v>=0;
+  el("verdict").style.background=pos?"var(--green-s)":"var(--red-s)";
+  el("verdict").style.borderColor=pos?GREEN:RED;
+  el("verdict").innerHTML=`
+    <div>
+      <div class="v-title" style="color:${pos?GREEN:RED}">VEREDITO HOJE — ${pos?"IMÓVEL À FRENTE DO CDI":"CDI À FRENTE DO IMÓVEL"}</div>
+      <div class="v-num mono" style="color:${pos?GREEN:RED}">${pos?"+":""}${fmtBRL(v)}</div>
+      <div class="v-desc">Diferença entre vender o imóvel hoje (líquido de corretagem, IR e saldo devedor) e o que os mesmos aportes teriam rendido no CDI líquido de IR.</div>
+    </div>
+    ${M.melhor?`<div class="v-right">
+      <div style="font-size:11.5px;color:var(--slate);font-weight:600;text-transform:uppercase;letter-spacing:.6px">Melhor mês projetado p/ venda</div>
+      <div class="mono" style="font-size:22px;font-weight:600;color:var(--navy)">${M.melhor.data.toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</div>
+      <div style="font-size:12.5px;color:var(--slate)">vantagem projetada ${fmtBRL(M.melhor.vant)}</div>
+    </div>`:""}`;
+
+  el("kpisVisao").innerHTML=[
+    ["Patrimônio total",fmtBRL(patrTot),"Imóvel + FIIs + ações + fundos",""],
+    ["Equity no imóvel",fmtBRL(equity),"Valor estimado − saldo devedor",""],
+    ["Carteira FIIs",fmtBRL(fiisTot),Object.keys(cotacoes).length?"Cotações ao vivo":"Preços de referência",""],
+    ["CDI acumulado 12m",med.cdi12!=null?fmtPct(med.cdi12):"…",med.selic!=null?`Selic meta ${(med.selic*100).toFixed(2)}% a.a.`:"Banco Central","color:var(--navy)"]
+  ].map(([t,vv,s,st])=>`<div class="kpi"><div class="t">${t}</div><div class="v" style="${st}">${vv}</div><div class="s">${s}</div></div>`).join("");
+
+  // Gráfico principal
+  const sample=M.linhas.filter((_,i)=>i%2===0||i===M.linhas.length-1);
+  novoChart("chMain",{type:"line",data:{labels:sample.map(l=>l.label),datasets:[
+    {label:"Venda líquida do imóvel",data:sample.map(l=>Math.round(l.liq)),borderColor:BLUE,backgroundColor:BLUE+"22",fill:true,borderWidth:2.2,pointRadius:0,tension:.25},
+    {label:"Custo de oportunidade (CDI líq.)",data:sample.map(l=>Math.round(l.co)),borderColor:ORANGE,borderWidth:2.2,pointRadius:0,tension:.25}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+    plugins:{legend:{labels:{font:{size:12}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+fmtBRL(c.parsed.y)}}},
+    scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}},x:{ticks:{maxTicksLimit:14,font:{size:10}}}}}});
+
+  // Pizza
+  novoChart("chPie",{type:"doughnut",data:{labels:["Imóvel (equity)","FIIs","Ações","Fundos/Outros"],
+    datasets:[{data:[Math.round(equity),Math.round(fiisTot),Math.round(acoesTot),Math.round(outrosTot)],backgroundColor:PIECOLORS,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:12}}},
+    tooltip:{callbacks:{label:c=>c.label+": "+fmtBRL(c.parsed)}}}}});
+
+  el("resumoExec").innerHTML=[
+    ["Valor estimado do imóvel hoje",fmtBRL(M.atual?.vImv)],
+    ["Saldo devedor hoje",fmtBRL(M.atual?.sd)],
+    ["Total já pago (parcelas)",fmtBRL(M.atual?.pago)],
+    ["Custo de oportunidade acumulado",fmtBRL(M.atual?.co)],
+    ["Venda líquida se vender hoje",fmtBRL(M.atual?.liq)],
+    ["FIIs — resultado vs. custo",fmtBRL(fiisTot-fiisCusto)]
+  ].map(([k,vv])=>`<tr><td>${k}</td><td class="r m b">${vv}</td></tr>`).join("");
+
+  // ---- IMÓVEL ----
+  el("kpisImovel").innerHTML=[
+    ["Valor de tabela",fmtBRL(PARAM.valorTabela),"Compra "+new Date(PARAM.dataCompra+"T12:00:00").toLocaleDateString("pt-BR",{month:"short",year:"numeric"})],
+    ["Parcelas",PARAM.numParcelas+"×",`Fixa ${fmtBRL(PARAM.parcelaFixa,2)} + variável (INCC)`],
+    ["Chaves",new Date(PARAM.dataChaves+"T12:00:00").toLocaleDateString("pt-BR",{month:"short",year:"numeric"}),(+PARAM.valorChaves?fmtBRL(PARAM.valorChaves)+" na entrega":"Sem reforço nas chaves")],
+    ["Parcela deste mês",fmtBRL(M.atual?.parcela,2),"Fixa + variável corrigida"]
+  ].map(([t,vv,s])=>`<div class="kpi"><div class="t">${t}</div><div class="v">${vv}</div><div class="s">${s}</div></div>`).join("");
+
+  const sample2=M.linhas.filter((_,i)=>i%2===0);
+  novoChart("chSaldo",{type:"line",data:{labels:sample2.map(l=>l.label),datasets:[
+    {label:"Saldo devedor",data:sample2.map(l=>Math.round(l.sd)),borderColor:RED,backgroundColor:RED+"18",fill:true,borderWidth:2,pointRadius:0,tension:.25},
+    {label:"Total pago",data:sample2.map(l=>Math.round(l.pago)),borderColor:TEAL,backgroundColor:TEAL+"1E",fill:true,borderWidth:2,pointRadius:0,tension:.25}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+    plugins:{legend:{labels:{font:{size:12}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+fmtBRL(c.parsed.y)}}},
+    scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}},x:{ticks:{maxTicksLimit:14,font:{size:10}}}}}});
+
+  el("tbImovel").innerHTML=M.linhas.map(l=>{
+    const best=M.melhor&&l.n===M.melhor.n;
+    return`<tr class="${best?"best":l.paga?"past":""}">
+      <td class="m">${l.n}</td><td>${l.label}${l.paga?" ✓":""}${best?" ★":""}</td>
+      <td class="r m">${fmtBRL(l.parcela)}</td><td class="r m">${fmtBRL(l.pago)}</td>
+      <td class="r m">${fmtBRL(l.sd)}</td><td class="r m">${fmtBRL(l.vImv)}</td>
+      <td class="r m">${fmtBRL(l.co)}</td><td class="r m">${fmtBRL(l.liq)}</td>
+      <td class="r m b ${l.vant>=0?"pos":"neg"}">${l.vant>=0?"+":""}${fmtBRL(l.vant)}</td></tr>`}).join("");
+
+  // ---- FIIs ----
+  const live=Object.keys(cotacoes).length>0;
+  el("thCotFii").textContent="Cotação "+(live?"ao vivo":"(ref.)");
+  el("thCotAcao").textContent="Cotação "+(live?"ao vivo":"(ref.)");
+  el("kpisFiis").innerHTML=[
+    ["Total FIIs",fmtBRL(fiisTot),live?"Cotações ao vivo (brapi)":"Preços de referência — configure o token",""],
+    ["Custo de aquisição",fmtBRL(fiisCusto),"Preço médio × cotas",""],
+    ["Resultado",(fiisTot-fiisCusto>=0?"+":"")+fmtBRL(fiisTot-fiisCusto),"Marcação vs. custo",fiisTot-fiisCusto>=0?"color:var(--green)":"color:var(--red)"]
+  ].map(([t,vv,s,st])=>`<div class="kpi"><div class="t">${t}</div><div class="v" style="${st}">${vv}</div><div class="s">${s}</div></div>`).join("");
+
+  el("tbFiis").innerHTML=fiisL.map(f=>`<tr>
+    <td class="b">${f.t}${f.live?" ●":""}</td><td class="r m">${f.q}</td>
+    <td class="r m">${fmtBRL(f.pm,2)}</td><td class="r m b">${fmtBRL(f.preco,2)}</td>
+    <td class="r m ${f.varr==null?"":f.varr>=0?"pos":"neg"}">${f.varr==null?"—":(f.varr>=0?"+":"")+fmtPct(f.varr)}</td>
+    <td class="r m b">${fmtBRL(f.saldo)}</td>
+    <td class="r m ${f.res>=0?"pos":"neg"}">${(f.res>=0?"+":"")+fmtBRL(f.res)}</td></tr>`).join("")+
+    `<tr class="total"><td class="b">TOTAL</td><td></td><td></td><td></td><td></td>
+    <td class="r m b">${fmtBRL(fiisTot)}</td>
+    <td class="r m b ${fiisTot-fiisCusto>=0?"pos":"neg"}">${(fiisTot-fiisCusto>=0?"+":"")+fmtBRL(fiisTot-fiisCusto)}</td></tr>`;
+
+  novoChart("chFiis",{type:"bar",data:{labels:fiisL.map(f=>f.t),
+    datasets:[{label:"Saldo",data:fiisL.map(f=>Math.round(f.saldo)),backgroundColor:NAVY,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:c=>fmtBRL(c.parsed.y)}}},scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}}});
+
+  // ---- AÇÕES ----
+  el("tbAcoes").innerHTML=acoesL.map(a=>`<tr>
+    <td class="b">${a.t}${a.live?" ●":""}</td><td class="r m">${a.q}</td>
+    <td class="r m">${fmtBRL(a.pm,2)}</td><td class="r m b">${fmtBRL(a.preco,2)}</td>
+    <td class="r m ${a.varr==null?"":a.varr>=0?"pos":"neg"}">${a.varr==null?"—":(a.varr>=0?"+":"")+fmtPct(a.varr)}</td>
+    <td class="r m b">${fmtBRL(a.saldo)}</td>
+    <td class="r m ${a.res>=0?"pos":"neg"}">${(a.res>=0?"+":"")+fmtBRL(a.res)}</td></tr>`).join("")+
+    `<tr class="total"><td class="b">TOTAL</td><td></td><td></td><td></td><td></td>
+    <td class="r m b">${fmtBRL(acoesTot)}</td><td></td></tr>`;
+
+  // ---- ÍNDICES ----
+  el("kpisIdx").innerHTML=[
+    ["CDI último mês",med.cdiAtual!=null?fmtPct(med.cdiAtual):"…","Série SGS 4391 — BCB"],
+    ["CDI acumulado 12m",med.cdi12!=null?fmtPct(med.cdi12):"…",""],
+    ["IPCA acumulado 12m",med.ipca12!=null?fmtPct(med.ipca12):"…","Série SGS 433 — IBGE/BCB"],
+    ["INCC acumulado 12m",med.incc12!=null?fmtPct(med.incc12):"…","Correção das parcelas"]
+  ].map(([t,vv,s])=>`<div class="kpi"><div class="t">${t}</div><div class="v">${vv}</div><div class="s">${s}</div></div>`).join("");
+
+  if(indices){
+    const meses={};
+    const add=(s,k)=>(s||[]).slice(-24).forEach(x=>{const key=mKey(x.data);
+      meses[key]=meses[key]||{key,label:mesLbl(x.data)};meses[key][k]=+(x.valor*100).toFixed(3)});
+    add(indices.cdi,"CDI");add(indices.ipca,"IPCA");add(indices.incc,"INCC");
+    const rows=Object.values(meses).sort((a,b)=>a.key<b.key?-1:1);
+    novoChart("chIdx",{type:"line",data:{labels:rows.map(r=>r.label),datasets:[
+      {label:"CDI",data:rows.map(r=>r.CDI??null),borderColor:ORANGE,borderWidth:2.2,pointRadius:0,tension:.25},
+      {label:"IPCA",data:rows.map(r=>r.IPCA??null),borderColor:TEAL,borderWidth:2.2,pointRadius:0,tension:.25},
+      {label:"INCC-M",data:rows.map(r=>r.INCC??null),borderColor:NAVY,borderWidth:2.2,pointRadius:0,tension:.25}
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+      plugins:{legend:{labels:{font:{size:12}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+c.parsed.y+"% a.m."}}},
+      scales:{y:{ticks:{callback:v=>v+"%"}},x:{ticks:{maxTicksLimit:12,font:{size:10}}}}}});
+    el("tbIdx").innerHTML=[...rows].reverse().map(r=>`<tr><td>${r.label}</td>
+      <td class="r m">${r.CDI!=null?r.CDI.toFixed(2)+"%":"—"}</td>
+      <td class="r m">${r.IPCA!=null?r.IPCA.toFixed(2)+"%":"—"}</td>
+      <td class="r m">${r.INCC!=null?r.INCC.toFixed(2)+"%":"—"}</td></tr>`).join("");
+  }
+  else{
+    // Sem séries automáticas: KPIs mostram os valores manuais em uso
+    el("kpisIdx").innerHTML=[
+      ["CDI em uso (manual)",fmtPct(PARAM.idxCdi),"% ao mês — editável na Configuração"],
+      ["IPCA em uso (manual)",fmtPct(PARAM.idxIpca),"% ao mês"],
+      ["INCC em uso (manual)",fmtPct(PARAM.idxIncc),"% ao mês — corrige as parcelas"],
+      ["Fonte","Manual","Nenhuma API conectada"]
+    ].map(([t,vv,s])=>`<div class="kpi"><div class="t">${t}</div><div class="v">${vv}</div><div class="s">${s}</div></div>`).join("");
+  }
+  // INCC ausente no plano B: deixar claro que o modelo usa a média manual
+  if(indices&&(!indices.incc||!indices.incc.length)){
+    const k=el("kpisIdx");
+    if(k&&!k.innerHTML.includes("INCC em uso")){
+      k.innerHTML+=`<div class="kpi"><div class="t">INCC em uso (manual)</div><div class="v">${fmtPct(PARAM.idxIncc)}</div><div class="s">API sem INCC — valor editável na Configuração</div></div>`;
+    }
+  }
+  renderEditores(fiisL,acoesL);
+
+}
+
+// ============================================================
+// NAVEGAÇÃO / EVENTOS
+// ============================================================
+function irAba(btn){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));
+  document.querySelectorAll(".pane").forEach(p=>p.classList.remove("on"));
+  btn.classList.add("on");
+  el("p-"+btn.dataset.p).classList.add("on");
+}
+// ---------- EDIÇÃO DE CARTEIRAS ----------
+function renderEditores(fiisL,acoesL){
+  const inp=(v,cls,ph)=>`<input type="${cls==='t'?'text':'number'}" value="${v??''}" placeholder="${ph||''}" data-f="${cls}" style="width:100%;padding:6px 8px;font-size:13px;border:1.5px solid var(--line);border-radius:6px;font-family:'IBM Plex Mono',monospace;${cls==='t'?'text-transform:uppercase':''}">`;
+  const bt=(tipo,i)=>`<button class="btn" style="color:var(--red);border:1.5px solid var(--line);padding:4px 10px" onclick="rmLinha('${tipo}',${i})" title="Remover">×</button>`;
+  const eF=el("edFiis");
+  if(eF)eF.innerHTML=CART.fiis.map((f,i)=>`<tr data-i="${i}">
+    <td>${inp(f.t,'t','HGLG11')}</td><td class="r">${inp(f.q,'q')}</td>
+    <td class="r">${inp(f.pm,'pm')}</td><td>${bt('fiis',i)}</td></tr>`).join("");
+  const eA=el("edAcoes");
+  if(eA)eA.innerHTML=CART.acoes.map((a,i)=>`<tr data-i="${i}">
+    <td>${inp(a.t,'t','PETR4')}</td><td class="r">${inp(a.q,'q')}</td>
+    <td class="r">${inp(a.pm,'pm')}</td><td class="r">${inp(a.peso,'peso')}</td><td>${bt('acoes',i)}</td></tr>`).join("");
+  const eO=el("edOutros");
+  if(eO)eO.innerHTML=CART.outros.map((o,i)=>`<tr data-i="${i}">
+    <td>${inp(o.n,'t','Trend Gold FIM')}</td><td class="r">${inp(o.v,'v')}</td><td>${bt('outros',i)}</td></tr>`).join("");
+}
+function lerEditores(){
+  const ler=(tbody,campos)=>[...(el(tbody)?.querySelectorAll("tr")||[])].map(tr=>{
+    const o={};tr.querySelectorAll("input").forEach(inp=>{
+      const f=inp.dataset.f;
+      o[f]=f==="t"||f==="n"?inp.value.trim().toUpperCase():parseFloat(String(inp.value).replace(",","."))||0;
+      if(f==="t"&&tbody==="edOutros"){o.n=inp.value.trim();delete o.t}
+    });return o;});
+  CART.fiis=ler("edFiis").filter(x=>x.t);
+  CART.acoes=ler("edAcoes").filter(x=>x.t);
+  CART.outros=ler("edOutros").filter(x=>x.n);
+}
+function aplicarCarteira(){
+  lerEditores();
+  try{localStorage.setItem("dash_carteiras",JSON.stringify(CART))}catch(e){}
+  const ok=el("cartOk");if(ok){ok.style.display="inline";setTimeout(()=>ok.style.display="none",2500)}
+  renderTudo();
+  const tk=el("inpToken").value.trim()||localStorage.getItem("brapi_token")||"";
+  if(tk)buscarBrapi(tk); // recotar os tickers novos
+}
+function addLinha(tipo){
+  lerEditores();
+  if(tipo==="fiis")CART.fiis.push({t:"",q:0,pm:0});
+  else if(tipo==="acoes")CART.acoes.push({t:"",q:0,pm:0,peso:0});
+  else CART.outros.push({n:"",v:0});
+  renderTudo();
+}
+function rmLinha(tipo,i){
+  lerEditores();
+  CART[tipo].splice(i,1);
+  renderTudo();
+}
+function carregarIbov(){
+  lerEditores();
+  CART.acoes=IBOV15.map(x=>({t:x.t,q:0,pm:0,peso:x.peso}));
+  renderTudo();
+  const tk=el("inpToken").value.trim()||localStorage.getItem("brapi_token")||"";
+  if(tk)buscarBrapi(tk);
+}
+function usarSaldoAtual(){
+  lerEditores();
+  const total=CART.acoes.reduce((s,a)=>{const p=cotacoes[a.t]?.preco??a.pm;return s+(p>0?p*(+a.q||0):0)},0);
+  el("valDistrib").value=Math.round(total);
+}
+function distribuirPesos(){
+  lerEditores();
+  const total=parseFloat(el("valDistrib").value)||0;
+  if(total<=0)return;
+  const somaPesos=CART.acoes.reduce((s,a)=>s+(+a.peso||0),0)||1;
+  CART.acoes.forEach(a=>{
+    const preco=cotacoes[a.t]?.preco??a.pm;
+    if(preco>0){
+      a.q=Math.floor(total*((+a.peso||0)/somaPesos)/preco);
+      if(!a.pm)a.pm=preco; // usa cotação atual como preço de entrada
+    }
+  });
+  try{localStorage.setItem("dash_carteiras",JSON.stringify(CART))}catch(e){}
+  renderTudo();
+}
+function preencherForm(){
+  const set=(id,v)=>{const e=el(id);if(e)e.value=v};
+  set("pValorTabela",PARAM.valorTabela); set("pEntrada",PARAM.entrada);
+  set("pEntParc",PARAM.entradaParcelas||1); set("pEntPer",String(PARAM.entradaPeriodo||1)); set("pEntData",PARAM.entradaData||PARAM.dataCompra);
+  set("pDataCompra",PARAM.dataCompra); set("pDataPrimeira",PARAM.primeiraParcela);
+  set("pNum",PARAM.numParcelas); set("pFixa",PARAM.parcelaFixa); set("pVar",PARAM.parcelaVariavelBase);
+  set("pDataChaves",PARAM.dataChaves); set("pValorChaves",PARAM.valorChaves);
+  set("pIrGC",(PARAM.irGC*100).toFixed(1)); set("pCorretagem",(PARAM.corretagem*100).toFixed(1));
+  set("pIrCDI",(PARAM.irCDI*100).toFixed(1)); set("pMetodoSD",PARAM.metodoSD);
+  set("mCdi",(PARAM.idxCdi*100).toFixed(2)); set("mIpca",(PARAM.idxIpca*100).toFixed(2)); set("mIncc",(PARAM.idxIncc*100).toFixed(2));
+}
+function aplicarParams(){
+  const num=(id,f=1)=>{const v=parseFloat(el(id).value);return isNaN(v)?null:v/f};
+  const txt=id=>el(id).value||null;
+  PARAM.valorTabela=num("pValorTabela")??PARAM.valorTabela;
+  PARAM.entrada=num("pEntrada")??0;
+  PARAM.entradaParcelas=Math.max(1,Math.round(num("pEntParc")??1));
+  PARAM.entradaPeriodo=Math.max(1,Math.round(parseFloat(el("pEntPer").value)||1));
+  PARAM.entradaData=txt("pEntData")??PARAM.dataCompra;
+  PARAM.dataCompra=txt("pDataCompra")??PARAM.dataCompra;
+  PARAM.primeiraParcela=txt("pDataPrimeira")??PARAM.primeiraParcela;
+  PARAM.numParcelas=Math.max(1,Math.round(num("pNum")??PARAM.numParcelas));
+  PARAM.parcelaFixa=num("pFixa")??PARAM.parcelaFixa;
+  PARAM.parcelaVariavelBase=num("pVar")??PARAM.parcelaVariavelBase;
+  PARAM.dataChaves=txt("pDataChaves")??PARAM.dataChaves;
+  PARAM.valorChaves=num("pValorChaves")??0;
+  PARAM.irGC=num("pIrGC",100)??PARAM.irGC;
+  PARAM.corretagem=num("pCorretagem",100)??PARAM.corretagem;
+  PARAM.irCDI=num("pIrCDI",100)??PARAM.irCDI;
+  PARAM.metodoSD=el("pMetodoSD").value;
+  PARAM.idxCdi=num("mCdi",100)??PARAM.idxCdi;
+  PARAM.idxIpca=num("mIpca",100)??PARAM.idxIpca;
+  PARAM.idxIncc=num("mIncc",100)??PARAM.idxIncc;
+  try{localStorage.setItem("dash_params",JSON.stringify(PARAM))}catch(e){}
+  const ok=el("paramsOk");if(ok){ok.style.display="inline";setTimeout(()=>ok.style.display="none",2500)}
+  renderTudo();
+}
+function restaurarParams(){
+  Object.assign(PARAM,DEFAULTS);
+  CART=JSON.parse(JSON.stringify(CART_DEFAULT));
+  try{localStorage.removeItem("dash_params");localStorage.removeItem("dash_carteiras")}catch(e){}
+  preencherForm(); renderTudo();
+}
+function mudarPremissa(){
+  const modo=document.querySelector("input[name=valz]:checked").value;
+  el("taxaFixa").disabled=modo!=="fixa";
+  premissa={modo,taxaAA:(parseFloat(el("taxaFixa").value)||0)/100};
+  renderTudo();
+}
+
+// ============================================================
+// INICIALIZAÇÃO — busca automática ao abrir
+// ============================================================
+window.addEventListener("DOMContentLoaded",()=>{
+  const tk=localStorage.getItem("brapi_token")||"";
+  if(tk){el("inpToken").value=tk;el("tokenOk").style.display="inline"}
+  indices=indicesEmbutidos(); // base de fábrica; APIs atualizam por cima
+  preencherForm();
+  renderTudo();       // desenha imediatamente com valores de referência
+  buscarBCB();        // busca índices reais do Banco Central
+  if(tk)buscarBrapi(tk); // busca cotações se houver token salvo
+});
+</script>
+</body>
+</html>
